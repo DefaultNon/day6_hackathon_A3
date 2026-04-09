@@ -211,37 +211,52 @@ export default function ChatAgent({
       status === 'ready' && 
       !processedMessageIds.current.has(lastMessage.id)
     ) {
-      const text = getMessageText(lastMessage)
-      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/)
+      // Lấy nội dung GỐC để quét Action
+      let rawText = ''
+      const lastMsgAny = lastMessage as any
+      if (typeof lastMsgAny.content === 'string') {
+        rawText = lastMsgAny.content
+      } else if (Array.isArray(lastMsgAny.parts)) {
+        rawText = lastMsgAny.parts
+          .map((part: any) => (part.type === 'text' ? part.text : (typeof part === 'string' ? part : '')))
+          .join('')
+      }
+
+      const jsonMatch = rawText.match(/```json\n([\s\S]*?)\n```/)
       
       if (jsonMatch) {
         try {
           const action = JSON.parse(jsonMatch[1])
-          
-          // Mark as processed BEFORE calling callbacks to be safe
           processedMessageIds.current.add(lastMessage.id)
           
-          if (action.action === 'BUILD_ITINERARY' && action.ids) {
-            // Map IDs to actual attraction objects from our fetched list
+          if ((action.action === 'BUILD_ITINERARY' || action.action === 'SUGGEST_LOCATIONS') && action.ids) {
             const selected = action.ids
               .map((id: string) => attractions.find(a => a.id === id))
               .filter((a: Attraction | undefined): a is Attraction => !!a)
 
             if (selected.length > 0) {
+              selected.forEach((attraction: Attraction) => {
+                if (!selectedAttractions.find(sa => sa.id === attraction.id)) {
+                  onSelectAttraction(attraction)
+                }
+              })
               onGenerateItinerary(selected)
             }
           } else if (action.action === 'SHOW_LOCATION' && action.id) {
             const attraction = attractions.find(a => a.id === action.id)
             if (attraction) {
+              if (!selectedAttractions.find(sa => sa.id === attraction.id)) {
+                onSelectAttraction(attraction)
+              }
               onShowLocation(attraction)
             }
           }
         } catch (e) {
-          console.error('Failed to parse action JSON:', e)
+          console.error('Lỗi khi phân tích JSON Action:', e)
         }
       }
     }
-  }, [messages, status, attractions, onGenerateItinerary, onShowLocation])
+  }, [messages, status, attractions, onGenerateItinerary, onShowLocation, selectedAttractions, onSelectAttraction])
 
   // Focus input when chat opens
   useEffect(() => {

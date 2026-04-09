@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, createContext, useContext, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import ChatAgent from '@/components/chat-agent'
 import LocationSheet from '@/components/location-sheet'
@@ -18,7 +19,7 @@ import {
   estimateTravelCost,
   estimateTravelTime,
 } from '@/lib/attractions'
-import { MapPin, Navigation, Minus, Plus } from 'lucide-react'
+import { MapPin, Navigation, Minus, Plus, Search, Menu, Bot, Sparkles } from 'lucide-react'
 
 // Context to share mode with child components
 type AppMode = 'fullscreen' | 'framed'
@@ -45,6 +46,28 @@ export default function TravelAppContent({ mode = 'fullscreen' }: TravelAppConte
   const [detailAttraction, setDetailAttraction] = useState<Attraction | null>(null)
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [allAttractions, setAllAttractions] = useState<Attraction[]>([])
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+  const [isSuccessToastVisible, setIsSuccessToastVisible] = useState(false)
+
+  // Hàm xử lý khi người dùng nhấn Đặt trọn gói Tour
+  const handleBookTour = () => {
+    setIsBookingModalOpen(true)
+  }
+
+  // Xác nhận đặt tour thành công
+  const confirmBooking = () => {
+    setIsBookingModalOpen(false)
+    setIsSuccessToastVisible(true)
+    setTimeout(() => setIsSuccessToastVisible(false), 5000)
+  }
+
+  const handleBookRide = () => {
+    if (itinerary) {
+      console.log("Booking ride for:", itinerary.destinations[0].name)
+      setIsSuccessToastVisible(true)
+      setTimeout(() => setIsSuccessToastVisible(false), 3000)
+    }
+  }
 
   // Fetch attractions from backend
   useEffect(() => {
@@ -157,11 +180,6 @@ export default function TravelAppContent({ mode = 'fullscreen' }: TravelAppConte
     setItinerary(null)
   }, [])
 
-  // Book ride (demo action)
-  const handleBookRide = useCallback(() => {
-    alert('Demo: This would open the ride booking flow to the first destination!')
-  }, [])
-
   const isFramed = mode === 'framed'
 
   return (
@@ -267,7 +285,50 @@ export default function TravelAppContent({ mode = 'fullscreen' }: TravelAppConte
             itinerary={itinerary}
             onClose={handleCloseItinerary}
             onBookRide={handleBookRide}
+            onBookTour={handleBookTour}
           />
+        )}
+
+        {/* Booking Confirmation Dialog */}
+        {isBookingModalOpen && itinerary && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <Card className="w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95">
+              <h3 className="text-xl font-bold mb-2">Xác nhận đặt Tour</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Bạn đang thực hiện đặt trọn gói hành trình khám phá {itinerary.destinations.length} địa điểm.
+              </p>
+              
+              <div className="space-y-3 bg-muted/50 p-4 rounded-lg mb-6 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tổng quãng đường:</span>
+                  <span className="font-semibold">{itinerary.totalDistance.toFixed(1)} km</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tổng thời gian di chuyển:</span>
+                  <span className="font-semibold">{Math.floor(itinerary.totalTime / 60)}h {itinerary.totalTime % 60}m</span>
+                </div>
+                <div className="border-t pt-2 mt-2 flex justify-between text-base">
+                  <span className="font-bold">Tổng chi phí ước tính:</span>
+                  <span className="font-bold text-orange-600">{(itinerary.estimatedCost).toLocaleString()} VND</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setIsBookingModalOpen(false)}>Hủy</Button>
+                <Button className="flex-1 bg-orange-600 hover:bg-orange-700" onClick={confirmBooking}>Xác nhận đặt ngay</Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Success Toast Notification */}
+        {isSuccessToastVisible && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[110] animate-in fade-in slide-in-from-top-4">
+            <Badge className="bg-green-600 text-white px-4 py-2 text-sm shadow-xl flex gap-2 items-center">
+              <Sparkles className="h-4 w-4" />
+              Đặt chỗ thành công! Chúng tôi đã gửi email xác nhận.
+            </Badge>
+          </div>
         )}
 
         {/* Chat agent */}
